@@ -107,6 +107,8 @@ function showSlide(index) {
     // Add active class to current slide and indicator
     if (slides[index]) {
         slides[index].classList.add('active');
+        // Load image if it hasn't been loaded yet
+        loadSlideImage(slides[index]);
     }
     if (indicators[index]) {
         indicators[index].classList.add('active');
@@ -114,6 +116,51 @@ function showSlide(index) {
     
     currentSlideIndex = index;
     updateSlideCounter();
+    
+    // Preload adjacent images
+    preloadAdjacentImages(index);
+}
+
+function loadSlideImage(slide) {
+    const img = slide.querySelector('.slide-image');
+    if (img && img.dataset.src && !img.src) {
+        img.src = img.dataset.src;
+        img.removeAttribute('data-src');
+    }
+}
+
+function preloadAdjacentImages(currentIndex) {
+    // Preload next image
+    const nextIndex = (currentIndex + 1) % totalSlides;
+    if (slides[nextIndex]) {
+        const nextImg = slides[nextIndex].querySelector('.slide-image');
+        if (nextImg && nextImg.dataset.src) {
+            const preloadImg = new Image();
+            preloadImg.src = nextImg.dataset.src;
+            preloadImg.onload = () => {
+                if (nextImg.dataset.src) {
+                    nextImg.src = nextImg.dataset.src;
+                    nextImg.removeAttribute('data-src');
+                }
+            };
+        }
+    }
+    
+    // Preload previous image
+    const prevIndex = (currentIndex - 1 + totalSlides) % totalSlides;
+    if (slides[prevIndex]) {
+        const prevImg = slides[prevIndex].querySelector('.slide-image');
+        if (prevImg && prevImg.dataset.src) {
+            const preloadImg = new Image();
+            preloadImg.src = prevImg.dataset.src;
+            preloadImg.onload = () => {
+                if (prevImg.dataset.src) {
+                    prevImg.src = prevImg.dataset.src;
+                    prevImg.removeAttribute('data-src');
+                }
+            };
+        }
+    }
 }
 
 function changeSlide(direction) {
@@ -166,20 +213,28 @@ function stopAutoPlay() {
 function setupImageInteractions() {
     const slides = document.querySelectorAll('.slide');
     
+    // Load first image immediately
+    if (slides[0]) {
+        loadSlideImage(slides[0]);
+        preloadAdjacentImages(0);
+    }
+    
     slides.forEach((slide, index) => {
         const img = slide.querySelector('.slide-image');
         
         // Click to open fullscreen
         slide.addEventListener('click', (e) => {
             if (!e.target.closest('.slide-nav') && !e.target.closest('.indicator')) {
-                openModal(img.src);
+                if (img && img.src) {
+                    openModal(img.src);
+                }
             }
         });
         
         // Error handling
         if (img) {
             img.addEventListener('error', function() {
-                console.warn(`Image failed to load: ${this.src}`);
+                console.warn(`Image failed to load: ${this.src || this.dataset.src}`);
                 this.style.display = 'none';
                 const slideInner = this.closest('.slide-inner');
                 if (slideInner) {
